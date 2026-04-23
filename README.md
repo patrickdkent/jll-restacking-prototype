@@ -1,14 +1,15 @@
-# 🏢 JLL Restacking Engine: Proof of Concept
+# 🏢 JLL Restacking Engine: Strategic Adjacency Prototype
 
-This repository contains a lightweight, interactive occupancy planning tool developed as a proof-of-concept for dynamic restacking and space utilization analysis.
+This repository contains an interactive occupancy planning tool developed to model complex restacking scenarios, balancing strict floor capacities with existing architectural constraints.
 
 ## Overview
-Moving a business from function-based silos to a product-led adjacency model requires balancing strict floor capacities against shifting headcount projections. This tool allows Occupancy Planners to model those scenarios in real-time. 
+Moving a business from function-based silos to an agile, product-led adjacency model requires more than just math—it requires spatial awareness. This tool allows Occupancy Planners to model dynamic headcount density while strategically placing specialized amenity spaces (Labs, War Rooms) into existing hard-walled architecture to minimize construction costs.
 
 ## Key Features
+* **Architectural Context Integration:** Overlays existing floor plan assets (e.g., enclosed offices, storage rooms) to guide the intelligent placement of specialized ancillary spaces without sacrificing assignable desk capacity.
 * **Dynamic Demand Calculation:** Adjust macro desk-sharing ratios (e.g., shifting tech teams from 0.96 to 0.80) to instantly visualize the impact on total programmed demand.
-* **Interactive Block & Stack:** Assign product pods to specific floor quads to visualize capacity deficits, surpluses, and co-location risks.
-* **Agentic Strategy Advisor:** Integrates with the Google GenAI SDK (Gemini 2.5 Flash) to analyze the current staging scenario and provide a professional executive summary on adjacencies and phased-move strategies.
+* **Interactive Block & Stack:** Assign product pods to specific floor quads to visualize capacity deficits, surpluses, and co-location risks based on pre- or post-renovation density targets.
+* **Agentic Strategy Advisor:** Integrates with the Google GenAI SDK (`gemini-2.5-flash`) to analyze the current staging scenario, evaluate architectural alignment, and provide a professional executive summary on phased-move viability.
 
 ## Tech Stack
 * **Frontend/Hosting:** Python, Streamlit Community Cloud
