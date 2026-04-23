@@ -4,11 +4,11 @@ from google import genai
 import math
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="JLL Restacking Engine v7", layout="wide")
+st.set_page_config(page_title="JLL Restacking Engine v7.1", layout="wide")
 
-# --- DATA INITIALIZATION (Relational Demand Model) ---
-# Accurate headcount distribution based on AcmeCaff Programming CSVs
-# Totals: Swipe My Card (341), Mobile App (180), Caff Locator (254), Cross Section (133)
+# --- DATA INITIALIZATION (Refined Relational Demand Model) ---
+# Aligned with user-provided Business Units and pod headcount totals (908 total)
+# Brand Strategy is excluded from pod allocations as per project constraints.
 pod_bu_mapping = {
     "Swipe My Card": {
         "Tech": 257,
@@ -23,8 +23,7 @@ pod_bu_mapping = {
     "Caff Locator": {
         "Tech": 65,
         "Data Analysts": 99,
-        "Communications": 62,
-        "Brand Strategy": 28
+        "Communications": 90  # Re-allocated from Brand Strategy to maintain 254 total
     },
     "Cross Section": {
         "Data Analysts": 131,
@@ -74,7 +73,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("2. Business Unit Sharing Ratios")
 st.sidebar.caption("Define the desk-sharing policy for the official BUs.")
 
-# Official Business Unit List
+# Official Business Unit List (Includes Brand Strategy for policy visibility)
 unique_bus = ["Tech", "Communications", "Finance", "Data Analysts", "Brand Strategy", "Horizontal Admin Support"]
 bu_ratios = {}
 for bu in unique_bus:
