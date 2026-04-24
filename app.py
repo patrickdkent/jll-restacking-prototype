@@ -196,7 +196,7 @@ if st.button("Generate Strategy Summary", type="primary"):
     if "GEMINI_API_KEY" not in st.secrets:
         st.error("DEBUG: 'GEMINI_API_KEY' not found in Streamlit Secrets.")
     else:
-        with st.spinner("Consulting JLL Strategy guidelines..."):
+        with st.spinner("Consulting Strategy guidelines..."):
             try:
                 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                 
