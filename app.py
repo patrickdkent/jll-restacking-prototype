@@ -2,12 +2,14 @@ import streamlit as st
 import pandas as pd
 from google import genai
 import math
+import sys
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="JLL Restacking Engine v7.2", layout="wide")
+st.set_page_config(page_title="JLL Restacking Engine v7.6", layout="wide")
 
-# --- DATA INITIALIZATION ---
-# Refined Pod-to-BU mapping (Brand Strategy excluded from Pods)
+# --- DATA INITIALIZATION (Relational Demand Model) ---
+# Maps specific BU headcounts to Product Pods based on Programming CSVs.
+# Brand Strategy is excluded from Pod allocations per user instruction.
 pod_bu_mapping = {
     "Swipe My Card": {
         "Tech": 257,
@@ -57,14 +59,17 @@ renovation_phase = st.sidebar.radio(
 if renovation_phase == "Pre-Renovation (Current)":
     quad_capacities = {"3.A": 124, "3.B": 96, "3.C": 108, "3.D": 108, "4.A": 126, "4.B": 96, "4.C": 108, "4.D": 121}
 else:
+    # Densified targets based on Patrick's strategic assessment
     quad_capacities = {"3.A": 143, "3.B": 143, "3.C": 143, "3.D": 143, "4.A": 143, "4.B": 143, "4.C": 143, "4.D": 142}
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("2. Business Unit Sharing Ratios")
+
+# Official Business Unit List
 unique_bus = ["Tech", "Communications", "Finance", "Data Analysts", "Brand Strategy", "Horizontal Admin Support"]
 bu_ratios = {}
 for bu in unique_bus:
-    # Assign specific default values for Tech and Communications, 1.0 for all others
+    # Logic: Tech 0.96, Communications 0.50, all others 1.00 by default
     if bu == "Tech":
         default_val = 0.96
     elif bu == "Communications":
@@ -75,21 +80,20 @@ for bu in unique_bus:
     bu_ratios[bu] = st.sidebar.slider(f"{bu} Ratio", 0.10, 1.00, default_val, 0.005)
 
 # --- MATH ENGINE: DEMAND & PLACEMENT ---
-# 1. Calculate Total Target Demand per Pod based on BU Ratios
+# 1. Calculate Target Demand per Pod based on BU-level Policy
 pod_demand = {}
 for pod, bu_counts in pod_bu_mapping.items():
     total = sum([(hc * bu_ratios.get(bu, 1.0)) for bu, hc in bu_counts.items()])
     pod_demand[pod] = math.ceil(total)
 
-# 2. Track Assignments from UI (Which pods are in which quads)
+# 2. Track UI Assignments (Session State)
 pod_assignments = {pod: [] for pod in pod_bu_mapping}
 for q in quad_capacities.keys():
     selected = st.session_state.get(f"pod_{q}", [])
     for p in selected:
         pod_assignments[p].append(q)
 
-# 3. Calculate Actual Placed Desks (Hard-Capped by Physical Quad Capacity)
-# Logic: If a quad is shared, we distribute seats based on the relative demand of the pods assigned to it.
+# 3. Fulfillment Math (Capped by Quad Capacity)
 placed_per_pod = {pod: 0 for pod in pod_bu_mapping}
 quad_loads = {q: 0 for q in quad_capacities.keys()}
 
@@ -98,21 +102,20 @@ for q, cap in quad_capacities.items():
     if not assigned_pods:
         continue
     
-    # Calculate demand share for each pod in this specific quad
-    # Share = (Pod's Total Demand) / (Total Quads that Pod is spread across)
+    # Calculate relative share of demand for pods in this quad
     quad_pod_shares = {p: (pod_demand[p] / len(pod_assignments[p])) for p in assigned_pods}
     total_quad_demand = sum(quad_pod_shares.values())
     
-    # Track the "ideal" load for capacity metrics (can exceed capacity)
+    # Ideal load (for capacity meters)
     quad_loads[q] = math.ceil(total_quad_demand)
     
-    # Calculate the actual fulfillment (cannot exceed physical capacity)
-    actual_quad_fulfillment = min(total_quad_demand, cap)
+    # Real-world fulfillment (cannot exceed physical desks)
+    actual_fulfillment = min(total_quad_demand, cap)
     
     for p in assigned_pods:
-        # Distribute available seats proportionally based on demand share
+        # Distribute available desks based on pod's share of quad demand
         ratio = quad_pod_shares[p] / total_quad_demand
-        placed_per_pod[p] += (ratio * actual_quad_fulfillment)
+        placed_per_pod[p] += (ratio * actual_fulfillment)
 
 # --- MAIN UI ---
 st.title("JLL Restacking Engine: Capacity Validation")
@@ -151,7 +154,7 @@ for i, quad in enumerate(quad_keys):
         st.markdown(f"### Quad {quad}")
         st.caption(f"Cap: {quad_capacities[quad]} | Architecture: {existing_architecture[quad]}")
         
-        # UI Multi-selects
+        # User Selection UI
         st.multiselect(
             "Assign Pods", 
             options=list(pod_bu_mapping.keys()), 
@@ -164,7 +167,7 @@ for i, quad in enumerate(quad_keys):
             key=f"spec_{quad}"
         )
 
-# --- CAPACITY ANALYSIS ---
+# --- CAPACITY ANALYSIS METRICS ---
 st.markdown("---")
 st.subheader("Capacity & Adjacency Analysis")
 cols_analysis = st.columns(8)
@@ -185,43 +188,36 @@ for i, quad in enumerate(quad_keys):
         elif load > 0:
             st.success("STABLE")
 
-# --- AGENTIC INTEGRATION: GEMINI STRATEGY ADVISOR ---
+# --- AI STRATEGY ADVISOR (DEBUG ENABLED) ---
 st.markdown("---")
 st.subheader("🧠 Agentic Strategy Advisor")
 
 if st.button("Generate Strategy Summary", type="primary"):
     if "GEMINI_API_KEY" not in st.secrets:
-        st.error("Missing GEMINI_API_KEY in Streamlit Secrets.")
+        st.error("DEBUG: 'GEMINI_API_KEY' not found in Streamlit Secrets dashboard.")
     else:
-        with st.spinner("Analyzing occupancy patterns..."):
+        with st.spinner("Analyzing occupancy and adjacencies..."):
             try:
+                # Initialize Client
                 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # Context for AI
+                # Construct data summary for AI
                 board_summary = "\n".join([
                     f"Quad {q}: Pods {st.session_state.get(f'pod_{q}', [])}. "
                     f"Load: {quad_loads[q]}/{quad_capacities[q]}" 
                     for q in quad_keys
                 ])
                 
-                prompt = f"""
-                You are a Senior Workplace Strategist for JLL. Evaluate this restack scenario.
-                Current Phase: {renovation_phase}
-                
-                Current Board State:
-                {board_summary}
-                
-                Provide a professional 3-paragraph summary on:
-                1. Stacking efficiency (address any OVER CAPACITY warnings).
-                2. Pod co-location strategy for the product-led model.
-                3. Move sequencing: which quads should be renovated next based on current vacancies?
-                """
-                
+                # Call Gemini 2.5 Flash
                 response = client.models.generate_content(
                     model='gemini-2.5-flash', 
-                    contents=prompt
+                    contents=f"You are a Senior JLL Workplace Strategist. Evaluate this restack scenario:\n{board_summary}"
                 )
-                st.info(response.text)
                 
+                st.info(response.text)
+                st.success("Analysis complete using gemini-2.5-flash")
+
             except Exception as e:
-                st.error(f"AI Error: {e}")
+                st.error("⚠️ AI Diagnostic Alert")
+                st.write(f"**Error Type:** `{type(e).__name__}`")
+                st.write(f"**Message:** {str(e)}")
