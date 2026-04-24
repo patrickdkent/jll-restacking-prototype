@@ -64,9 +64,15 @@ st.sidebar.subheader("2. Business Unit Sharing Ratios")
 unique_bus = ["Tech", "Communications", "Finance", "Data Analysts", "Brand Strategy", "Horizontal Admin Support"]
 bu_ratios = {}
 for bu in unique_bus:
-    # Industry standard defaults for the assessment context
-    default_ratio = 0.965 if bu in ["Tech", "Data Analysts"] else 0.50
-    bu_ratios[bu] = st.sidebar.slider(f"{bu} Ratio", 0.10, 1.00, default_ratio, 0.005)
+    # Assign specific default values for Tech and Communications, 1.0 for all others
+    if bu == "Tech":
+        default_val = 0.96
+    elif bu == "Communications":
+        default_val = 0.50
+    else:
+        default_val = 1.00
+        
+    bu_ratios[bu] = st.sidebar.slider(f"{bu} Ratio", 0.10, 1.00, default_val, 0.005)
 
 # --- MATH ENGINE: DEMAND & PLACEMENT ---
 # 1. Calculate Total Target Demand per Pod based on BU Ratios
