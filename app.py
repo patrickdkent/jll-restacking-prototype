@@ -188,36 +188,53 @@ for i, quad in enumerate(quad_keys):
         elif load > 0:
             st.success("STABLE")
 
-# --- AI STRATEGY ADVISOR (DEBUG ENABLED) ---
+# --- AGENTIC INTEGRATION: GEMINI STRATEGY ADVISOR (v7.7) ---
 st.markdown("---")
 st.subheader("🧠 Agentic Strategy Advisor")
 
 if st.button("Generate Strategy Summary", type="primary"):
     if "GEMINI_API_KEY" not in st.secrets:
-        st.error("DEBUG: 'GEMINI_API_KEY' not found in Streamlit Secrets dashboard.")
+        st.error("DEBUG: 'GEMINI_API_KEY' not found in Streamlit Secrets.")
     else:
-        with st.spinner("Analyzing occupancy and adjacencies..."):
+        with st.spinner("Consulting JLL Strategy guidelines..."):
             try:
-                # Initialize Client
                 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # Construct data summary for AI
+                # NEW: Give the AI the Global Context so it knows the "Total Goal"
+                inventory_summary = "\n".join([
+                    f"- {pod}: Target {pod_demand[pod]} desks. Currently placed: {math.floor(placed_per_pod[pod])}."
+                    for pod in pod_demand.keys()
+                ])
+                
                 board_summary = "\n".join([
-                    f"Quad {q}: Pods {st.session_state.get(f'pod_{q}', [])}. "
-                    f"Load: {quad_loads[q]}/{quad_capacities[q]}" 
+                    f"Quad {q}: Pods {st.session_state.get(f'pod_{q}', [])}. Load: {quad_loads[q]}/{quad_capacities[q]}" 
                     for q in quad_keys
                 ])
                 
-                # Call Gemini 2.5 Flash
+                # The Refined Prompt
+                prompt = f"""
+                You are a Senior JLL Workplace Strategist evaluating a product-led restack.
+                
+                PROJECT STATUS:
+                {inventory_summary}
+                
+                CURRENT FLOOR MAP:
+                {board_summary}
+                
+                TASK:
+                1. Identify which pods are still "homeless" or partially unseated.
+                2. Evaluate if the current quads are over-capacity.
+                3. Provide 3 paragraphs of strategic advice on how to finish the restack.
+                """
+                
                 response = client.models.generate_content(
                     model='gemini-2.5-flash', 
-                    contents=f"You are a Senior JLL Workplace Strategist. Evaluate this restack scenario:\n{board_summary}"
+                    contents=prompt
                 )
                 
                 st.info(response.text)
-                st.success("Analysis complete using gemini-2.5-flash")
+                st.success("Analysis corrected with Global Inventory context.")
 
             except Exception as e:
                 st.error("⚠️ AI Diagnostic Alert")
-                st.write(f"**Error Type:** `{type(e).__name__}`")
-                st.write(f"**Message:** {str(e)}")
+                st.write(f"**Error Message:** {str(e)}")
